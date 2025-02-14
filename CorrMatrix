@@ -1,0 +1,32 @@
+# Install and load required packages
+if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
+if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
+if (!requireNamespace("Hmisc", quietly = TRUE)) install.packages("Hmisc")
+
+library(readxl)
+library(dplyr)
+library(Hmisc)
+
+# Define the file path
+file_path <- "C:\\Users\\janis\\OneDrive\\Desktop\\CNS_merged_data.xlsx"
+
+# Load the dataset (assuming the data is in the first sheet)
+data <- read_excel(file_path)
+
+# Convert character variables to numeric (will produce NA for non-numeric characters)
+data <- data %>% mutate(across(where(is.character), as.numeric))
+
+# Filter for numeric variables only
+numeric_data <- data %>% select(where(is.numeric))
+
+# Compute correlations using Hmisc
+cor_results <- rcorr(as.matrix(numeric_data))
+
+# Extract the correlation matrix
+cor_matrix <- cor_results$r
+
+# View the correlation coefficient matrix
+print(cor_matrix)
+
+# Save the correlation matrix to a CSV file (optional)
+write.csv(cor_matrix, "C:\\Users\\janis\\OneDrive\\Desktop\\Power_correlation_coefficients_matrix.csv")
