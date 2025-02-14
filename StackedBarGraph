@@ -1,0 +1,36 @@
+# Load the necessary libraries
+library(ggplot2)
+library(readxl)
+library(tidyr)
+library(dplyr)
+
+# Read the data from the Excel file
+data <- read.csv("/Users/janisgaudreau/Desktop/Data_for_Plotting_Poster.csv")
+
+# Rename stress levels
+data$Level <- factor(ifelse(data$PSS_Group == 1, "Low Stress", "Moderate Stress"))
+
+# Melt the data frame to long format
+data_long <- pivot_longer(data, cols = c(Average_Light_PA_Per_Day, Average_Moderate_PA_Per_Day, Vigorous_PA_7_days), names_to = "Activity_Type", values_to = "Average_PA")
+
+# Define the desired order for the "Activity_Type" variable
+activity_order <- c("Vigorous_PA_7_days", "Average_Moderate_PA_Per_Day", "Average_Light_PA_Per_Day")
+
+# Convert Activity_Type and Level columns to factor with the defined order
+data_long$Activity_Type <- factor(data_long$Activity_Type, levels = activity_order)
+data_long$Level <- factor(data_long$Level, levels = c("Low Stress", "Moderate Stress"))
+
+# Calculate mean PA for each group (Low Stress and Moderate Stress)
+mean_pa <- data_long %>%
+  group_by(Activity_Type, Level) %>%
+  summarise(mean_pa = mean(Average_PA, na.rm = TRUE))
+
+# Plot stacked bar graph with axes flipped
+ggplot(mean_pa, aes(x = Level, y = mean_pa, fill = Activity_Type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = " ",
+       x = " ",
+       y = "Time Spent in PA (minutes)") +
+  scale_fill_manual(values = c("#ffb061", "#A74267", "#432149")) +
+  coord_cartesian(ylim = c(1800, 2400)) +
+  theme_minimal()
