@@ -1,0 +1,23 @@
+# Load the necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Read the data from the CSV file
+data <- read.csv("/Users/janisgaudreau/Desktop/Data_for_Plotting_Poster.csv")
+
+# Rename stress levels
+data$Level <- factor(ifelse(data$PSS_Group == 1, "Low Stress", "Moderate Stress"))
+
+# Define lighter versions of the fill colors
+light_fill_colors <- alpha(c("#432149", "#A74267"), 0.5)  # Adjust alpha value for lighter fill
+
+# Create a box plot with quartiles
+ggplot(data, aes(x = Level, y = Lean_Mass_Perc, fill = Level)) +
+  geom_boxplot(color = c("#432149", "#A74267"), fill = light_fill_colors, position = position_dodge(width = 0.75)) +  # Adjusting outline color and box fill
+  geom_point(stat = "summary", fun = mean, shape = 18, size = 3, color = "black", position = position_dodge(width = 0.75)) +
+  geom_point(stat = "summary", fun = mean, shape = 18, size = 3, color = "black", fill = "white", position = position_dodge(width = 0.75)) + # Adding white filled diamonds with dodge position
+  labs(x = NULL, y = "Lean Mass (%)") +
+  scale_fill_manual(values = c("#432149", "#A74267")) + 
+  theme_classic() +
+  theme(axis.text.x = element_blank()) +
+  coord_cartesian(ylim = c(0, 100))
