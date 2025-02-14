@@ -1,0 +1,105 @@
+library(readxl)
+library(data.table)
+library(writexl)
+
+# Define the directory
+file_dir <- "C:\\Users\\janis\\OneDrive\\Desktop\\CNS Analysis"
+
+power_files <- c("alpha1_power.xlsx", "alpha2_power.xlsx", "beta1_power.xlsx", 
+                 "beta2_power.xlsx", "beta3_power.xlsx")
+
+psd_files <- c("alpha1_psd.xlsx", "alpha2_psd.xlsx", "beta1_psd.xlsx", 
+               "beta2_psd.xlsx", "beta3_psd.xlsx")
+
+# Define electrode selections
+electrode_map <- list(
+  "alpha1" = c(92, 91, 85, 84, 90, 83, 76, 71, 70, 65, 66, 60, 59),
+  "alpha2" = c(92, 91, 85, 84, 90, 83, 76, 71, 70, 65, 66, 60, 59),
+  "beta1"  = c(41, 42, 47, 51, 52, 58, 59, 65, 66, 70, 110, 109, 108, 102, 98, 101, 97, 92, 96, 91, 90),
+  "beta2"  = c(41, 42, 47, 110, 117, 109, 108, 98, 93),
+  "beta3"  = c(45, 116, 115, 109)
+)
+
+# Function to process files and ensure unique participants
+process_file <- function(file, band_name, type) {
+  data <- as.data.table(read_excel(file, col_types = "text"))  # Load as text for memory efficiency
+  
+  # Convert numeric columns
+  num_cols <- setdiff(names(data), "name")
+  data[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+  
+  # Select relevant electrodes
+  selected_electrodes <- electrode_map[[band_name]]
+  electrode_cols <- paste0("E", selected_electrodes)
+  
+  # Keep only necessary columns
+  data <- data[, c("name", electrode_cols), with = FALSE]
+  
+  # Rename electrode columns properly
+  new_col_names <- paste0(toupper(substr(band_name, 1, 2)), "_", selected_electrodes, "_", type)
+  setnames(data, old = electrode_cols, new = new_col_names)
+  
+  # Remove duplicate participant names (if any)
+  data <- unique(data, by = "name")
+  
+  return(data)
+}
+
+process_file <- function(file, band_name, type) {
+  data <- as.data.table(read_excel(file, col_types = "text"))  
+  
+  # Convert numeric columns
+  num_cols <- setdiff(names(data), "name")
+  data[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+  
+  # Correct naming scheme
+  band_labels <- list("alpha1" = "A1", "alpha2" = "A2", "beta1" = "B1", "beta2" = "B2", "beta3" = "B3")
+  band_code <- band_labels[[band_name]]
+  
+  # Select relevant electrodes
+  selected_electrodes <- electrode_map[[band_name]]
+  electrode_cols <- paste0("E", selected_electrodes)
+  
+  # Keep only necessary columns
+  data <- data[, c("name", electrode_cols), with = FALSE]
+  
+  # Rename electrode columns correctly
+  new_col_names <- paste0(band_code, "_", selected_electrodes, "_", type)
+  setnames(data, old = electrode_cols, new = new_col_names)
+  
+  # Remove duplicate participant names
+  data <- unique(data, by = "name")
+  
+  return(data)
+}
+
+# Process all files
+power_data <- lapply(seq_along(power_files), function(i) {
+  process_file(power_files[i], names(electrode_map)[i], "power")
+})
+
+psd_data <- lapply(seq_along(psd_files), function(i) {
+  process_file(psd_files[i], names(electrode_map)[i], "psd")
+})
+
+# Free up memory
+gc()
+
+# **Find the list of all participants across datasets**
+all_participants <- unique(rbindlist(c(power_data, psd_data), use.names = TRUE, fill = TRUE)[, .(name)])
+
+# **Ensure all datasets include all participants (even if missing values)**
+fill_missing <- function(df) {
+  merge(all_participants, df, by = "name", all.x = TRUE)  # Ensures alignment
+}
+
+power_data <- lapply(power_data, fill_missing)
+psd_data <- lapply(psd_data, fill_missing)
+
+# **Merge everything together**
+final_data <- Reduce(function(dt1, dt2) merge(dt1, dt2, by = "name", all = TRUE), c(power_data, psd_data))
+
+# Save final dataset
+write_xlsx(final_data, "Final_EEG_Data_Optimized.xlsx")
+
+print("✅ Successfully saved Final_EEG_Data_Optimized.xlsx!")
