@@ -1,0 +1,60 @@
+# Load necessary packages
+library(tidyverse)
+library(broom)
+library(jtools)
+library(readxl)
+library(writexl)
+
+# Define file path and load data
+file_path <- "C:/Users/janis/OneDrive/Desktop/1.31Analysis.xlsx"
+data <- read_excel(file_path)
+
+# Define dependent and independent variables
+dependent_vars <- c("A1_power_ROI", "A2_power_ROI", "B1_power_ROI", "B2_power_ROI", "B3_power_ROI", 
+                    "A1_psd_ROI", "A2_psd_ROI", "B1_psd_ROI", "B2_psd_ROI", "B3_psd_ROI")
+independent_vars <- c("Barratt_Edu_cat", "Barratt_Occ_cat", "FSQ_cat", "PhenX_NS_01", "PhenX_NS_02", 
+                      "PhenX_NS_03", "Sex", "Race", "PPS_F", "PPS_M_cat", "Ethnicity", "Age")
+
+# Run regression for each IV as a separate model for each DV and store results
+results <- lapply(independent_vars, function(ind_var) {
+  lapply(dependent_vars, function(dep_var) {
+    model <- lm(as.formula(paste(dep_var, "~", ind_var)), data = data)
+    model_summary <- summary(model)
+    
+    # Extract individual predictor statistics
+    tidy_results <- tidy(model, conf.int = TRUE) %>% 
+      mutate(significance = case_when(
+        p.value < 0.001 ~ "***",
+        p.value < 0.01  ~ "**",
+        p.value < 0.05  ~ "*",
+        TRUE ~ ""
+      )) %>% 
+      mutate(dependent_var = dep_var, independent_var = ind_var)
+    
+    # Extract overall model statistics
+    model_fit <- tibble(
+      independent_var = ind_var,
+      dependent_var = dep_var,
+      R2 = model_summary$r.squared,
+      Adj_R2 = model_summary$adj.r.squared,
+      F_statistic = model_summary$fstatistic[1],
+      df_num = model_summary$fstatistic[2],
+      df_denom = model_summary$fstatistic[3],
+      p_value = pf(model_summary$fstatistic[1], model_summary$fstatistic[2], model_summary$fstatistic[3], lower.tail = FALSE)
+    )
+    
+    list(tidy_results = tidy_results, model_fit = model_fit)
+  })
+})
+
+# Flatten results
+tidy_results <- bind_rows(lapply(results, function(x) bind_rows(lapply(x, "[[", "tidy_results"))))
+model_fit_results <- bind_rows(lapply(results, function(x) bind_rows(lapply(x, "[[", "model_fit"))))
+
+# Define output file path
+output_file <- "C:/Users/janis/OneDrive/Desktop/regression_results111.xlsx"
+
+# Write results to an Excel file
+write_xlsx(list(Regression_Results = tidy_results, Model_Fit_Results = model_fit_results), output_file)
+
+print(paste("Results saved to", output_file))
