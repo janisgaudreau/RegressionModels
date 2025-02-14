@@ -1,0 +1,70 @@
+# Load necessary libraries
+library(dplyr)
+library(readr)
+
+options(scipen=999)
+
+# Load data
+data <- read.csv("/Users/janis_gaudreau/Desktop/powerFINAL.csv")
+p_values <- read.csv("/Users/janis_gaudreau/Downloads/p_values_power_matrix.csv")
+
+# Define output file path
+output_file <- "/Users/janis_gaudreau/Downloads/regression_results.csv"
+
+# Initialize an empty list to store results
+results <- list()
+
+# Extract the name of electrode
+electrodes <-p_values$Electrode[1:71]
+
+# Loop through each electrode (column A values)
+for (electrode in seq_along(electrodes)) {
+  # Filter rows corresponding to the current electrode
+  electrode_data <- data[,colnames(data) == electrodes[electrode]]
+  
+  # Get significant variables for the current electrode
+  sig_vars <- colnames(p_values)[p_values[electrode, ] < 0.05]
+  
+  # Ensure variables are present in the dataset
+  sig_vars <- sig_vars[sig_vars %in% colnames(data)]
+  
+  # Skip if no significant variables
+  if (length(sig_vars) == 0) {
+    next
+  }
+  
+  # Step 1: Define the model formula
+  step1_vars <- intersect(sig_vars, c("Age", "Sex", "Race", "Ethnicity"))
+  if (length(step1_vars) > 0) {
+    step1_formula <- as.formula(paste(electrodes[electrode], "~", paste(step1_vars, collapse = " + ")))
+    step1_model <- lm(step1_formula, data = data)
+    
+    # Step 2: Add additional variables if significant
+    step2_vars <- intersect(sig_vars, c("Age", "Sex", "Race", "Ethnicity", "FSQ_cat", "Barratt_Edu_Cat", "Barratt_Total_Occ", "PhenX_NS_Cat"))
+    if (length(step2_vars) > 0) {
+      step2_formula <- as.formula(paste(electrodes[electrode], "~", paste(step2_vars, collapse = " + ")))
+      step2_model <- lm(step2_formula, data = data)
+      
+      # Extract results for Step 2
+      step2_summary <- summary(step2_model)
+      results[[electrodes[electrode]]] <- data.frame(
+        Electrode = electrodes[electrode],
+        Variables = paste(step2_vars, collapse = ", "),
+        F_Statistic = step2_summary$fstatistic[1],
+        Num_DF = step2_summary$fstatistic[2],
+        Denom_DF = step2_summary$fstatistic[3],
+        Adj_R_Squared = step2_summary$adj.r.squared,
+        P_Value = pf(step2_summary$fstatistic[1], step2_summary$fstatistic[2], step2_summary$fstatistic[3], lower.tail = FALSE)
+      )
+    }
+  }
+}
+
+# Combine all results into a single data frame
+final_results <- bind_rows(results)
+
+# Write results to a CSV file
+write.csv(final_results, output_file, row.names = FALSE)
+
+# Print completion message
+cat("Regression results saved to:", output_file, "\n")
