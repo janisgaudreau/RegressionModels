@@ -1,0 +1,72 @@
+# Specify IVs and DVs
+IVs <- c(
+  "Barratt_Total", "Barratt_Total_Edu", "Barratt_Total_Occ",
+  "FSQ_04", "FSQ_05a", "FSQ_05b", "FSQ_05h", "FSQ_05i",
+  "PhenX_NS_01", "PhenX_NS_02", "PhenX_NS_03", "PhenX_School_08"
+)
+DVs <- c(
+  "G_6", "G_11", "G_16", "G_55", "G_62", "G_72", "G_129",
+  "B3_6", "B3_11", "B3_16", "B3_55", "B3_62", "B3_72", "B3_129",
+  "B2_6", "B2_11", "B2_16", "B2_55", "B2_62", "B2_72", "B2_129",
+  "B1_6", "B1_11", "B1_16", "B1_55", "B1_62", "B1_72", "B1_129",
+  "B_6", "B_11", "B_16", "B_55", "B_62", "B_72", "B_129",
+  "A2_6", "A2_11", "A2_16", "A2_55", "A2_62", "A2_72", "A2_129",
+  "A1_6", "A1_11", "A1_16", "A1_55", "A1_62", "A1_72", "A1_129",
+  "A_6", "A_11", "A_16", "A_55", "A_62", "A_72", "A_129",
+  "T_6", "T_11", "T_16", "T_55", "T_62", "T_72", "T_129",
+  "D_6", "D_11", "D_16", "D_55", "D_62", "D_72", "D_129"
+)
+
+# Initialize an empty list to store results
+results <- list()
+
+# Loop through IVs and DVs
+for (iv in IVs) {
+  for (dv in DVs) {
+    print(paste("Processing IV:", iv, "DV:", dv)) # Debugging
+    
+    # Check if both columns exist
+    if (iv %in% colnames(data) && dv %in% colnames(data)) {
+      print(paste("Columns exist:", iv, dv)) # Debugging
+      
+      # Subset data for the current IV and DV, handle missingness
+      data_subset <- data %>% select(all_of(c(iv, dv))) %>% na.omit()
+      
+      # Run the model only if sufficient data exists
+      if (nrow(data_subset) > 1) {
+        model <- lm(as.formula(paste(dv, "~", iv)), data = data_subset)
+        summary_stats <- summary(model)
+        
+        # Extract F-statistic and p-value for the model
+        f_stat <- summary_stats$fstatistic
+        f_value <- if (!is.null(f_stat)) f_stat["value"] else NA
+        f_df1 <- if (!is.null(f_stat)) f_stat["numdf"] else NA
+        f_df2 <- if (!is.null(f_stat)) f_stat["dendf"] else NA
+        f_pvalue <- if (!is.null(f_stat)) pf(f_value, f_df1, f_df2, lower.tail = FALSE) else NA
+        
+        # Store the results
+        results[[paste(iv, dv, sep = "_")]] <- data.frame(
+          IV = iv,
+          DV = dv,
+          Coefficient = summary_stats$coefficients[2, "Estimate"],
+          StdError = summary_stats$coefficients[2, "Std. Error"],
+          tValue = summary_stats$coefficients[2, "t value"],
+          pValue = summary_stats$coefficients[2, "Pr(>|t|)"],
+          R2 = summary_stats$r.squared,
+          F_Statistic = f_value,
+          F_pValue = f_pvalue
+        )
+      } else {
+        print(paste("Not enough data for IV:", iv, "DV:", dv))
+      }
+    } else {
+      print(paste("Skipping due to missing column:", iv, dv))
+    }
+  }
+}
+
+# Combine results into a single data frame
+results_df <- do.call(rbind, results)
+
+# Save results to an Excel file
+write_xlsx(results_df, "Power_regression_results_with_F.xlsx")
