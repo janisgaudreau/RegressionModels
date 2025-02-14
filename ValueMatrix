@@ -1,0 +1,32 @@
+# Install and load required packages
+if (!requireNamespace("readxl", quietly = TRUE)) install.packages("readxl")
+if (!requireNamespace("dplyr", quietly = TRUE)) install.packages("dplyr")
+if (!requireNamespace("Hmisc", quietly = TRUE)) install.packages("Hmisc")
+
+library(readxl)
+library(dplyr)
+library(Hmisc)
+
+# Define the file path
+file_path <- "/Users/janis_gaudreau/Desktop/powerFINAL.xlsx"
+
+# Load the dataset (assuming the data is in the first sheet)
+data <- read_excel(file_path)
+
+# Convert character variables to numeric (will produce NA for non-numeric characters)
+data <- data %>% mutate(across(where(is.character), as.numeric))
+
+# Filter for numeric variables only
+numeric_data <- data %>% select(where(is.numeric))
+
+# Compute correlations and p-values using Hmisc
+cor_results <- rcorr(as.matrix(numeric_data))
+
+# Extract the p-values
+p_values <- cor_results$P
+
+# View the p-value matrix
+print(p_values)
+
+# Save the p-value matrix to a CSV file (optional)
+write.csv(p_values, "/Users/janis_gaudreau/Downloads/p_values_power_matrix.csv")
