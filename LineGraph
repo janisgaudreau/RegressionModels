@@ -1,0 +1,51 @@
+# Load the necessary libraries
+library(ggplot2)
+library(readxl)
+library(tidyr)
+library(dplyr)
+
+# Read the data from the Excel file
+data <- read_excel("/Users/janisgaudreau/Desktop/Data_for_Plotting_Poster.xlsx", sheet = "DiurnalCortisolCurve")
+
+# Melt the data frame to long format
+data_long <- pivot_longer(data, cols = -PSS_Group, names_to = "Time", values_to = "Value")
+
+# Define the desired order for the "Time" variable
+time_order <- c("Wake", "+30 min", "+45 min", "+60 min", "Bed")
+
+# Convert Time column to factor with the defined order
+data_long$Time <- factor(data_long$Time, levels = time_order)
+
+# Calculate mean and standard error for each time point within each group
+summary_data <- data_long %>%
+  group_by(PSS_Group, Time) %>%
+  summarise(mean = mean(Value, na.rm = TRUE),
+            se = sd(Value, na.rm = TRUE) / sqrt(n())) %>%
+  # Filter to include only the mean values for each group
+  filter(!is.na(Time))
+
+# Create a new column for group labels
+summary_data$. <- ifelse(summary_data$PSS_Group == 1, "Low Stress", "Moderate Stress")
+
+# Filter to include only Low Stress and Moderate Stress groups
+summary_data <- summary_data %>% filter(Group_Label %in% c("Low Stress", "Moderate Stress"))
+
+# Create the ggplot with the data
+ggplot(summary_data, aes(x = Time, y = mean, color = Group_Label, group = Group_Label)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.1) +
+  geom_line() +
+  # Set line colors for each group
+  scale_color_manual(values = c("Low Stress" = "#432149", "Moderate Stress" = "#A74267")) +
+  # Set plot title and axis labels
+  labs(title = " ",
+       x = " ",
+       y = "Diurnal Cortisol Curve (nmol/L") +
+  # Set the maximum limit of the y-axis
+  ylim(0, 0.75) +
+  # Remove NA on the x-axis
+  scale_x_discrete(drop = FALSE) +
+  # Remove the grey line
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
