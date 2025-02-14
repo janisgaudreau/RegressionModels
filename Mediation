@@ -1,0 +1,73 @@
+# Load necessary libraries
+library(mediation)
+library(writexl)
+
+# Load your dataset
+data <- read.csv("/Users/janisgaudreau/Desktop/PALACE_KID_DATA - Summary.csv")
+
+# Define the list of variables (all the variables you provided earlier)
+variables <- c("BFM", "LBM", "PBF", "VFA", "BMI", "BMI_perc", "Picture_Vocab", "Oral_com", 
+               "Direction", "Letter.Word_Iden", "Passage_comp", "reading", "spelling", 
+               "word_attack", "applied_problem", "calculation", "math", "VO2_Peak_ml_kg_min", 
+               "VO2_Aboluste_VO2_L_min", "VO2_FF_VO2_ml_kg_lean_min")
+
+# ADHD variable as mediator
+mediator_var <- "Percentile_Total_ADHD"
+
+# Initialize a list to store mediation results
+mediation_results <- list()
+
+# Loop over each variable as the independent variable
+for (iv in variables) {
+  
+  # Loop over the other variables as the dependent variables
+  for (dv in variables) {
+    if (iv != dv) {  # Skip if IV and DV are the same
+      
+      # Subset the data to ensure no missing values for IV, DV, and mediator
+      complete_data <- data[complete.cases(data[, c(iv, dv, mediator_var)]), ]
+      
+      # Only perform mediation if there are enough complete rows
+      if (nrow(complete_data) > 30) {  # Adjust threshold based on your needs
+        
+        # Create the models for mediation analysis
+        model.M <- lm(as.formula(paste(mediator_var, "~", iv)), data = complete_data)  # IV -> Mediator
+        model.Y <- lm(as.formula(paste(dv, "~", iv, "+", mediator_var)), data = complete_data)  # IV + Mediator -> DV
+        
+        # Perform the mediation analysis
+        mediation_result <- mediate(model.M, model.Y, treat = iv, mediator = mediator_var, boot = TRUE, sims = 1000)
+        
+        # Extract key results
+        mediation_summary <- summary(mediation_result)
+        result_df <- data.frame(
+          IV = iv,
+          DV = dv,
+          ACME = mediation_summary$d0,       # Average causal mediation effect
+          ADE = mediation_summary$z0,        # Average direct effect
+          Total_Effect = mediation_summary$tau.coef,
+          ACME_CI_Lower = mediation_summary$d0.ci[1],
+          ACME_CI_Upper = mediation_summary$d0.ci[2],
+          ADE_CI_Lower = mediation_summary$z0.ci[1],
+          ADE_CI_Upper = mediation_summary$z0.ci[2],
+          Total_Effect_CI_Lower = mediation_summary$tau.ci[1],
+          Total_Effect_CI_Upper = mediation_summary$tau.ci[2],
+          p_value_ACME = mediation_summary$d0.p,
+          p_value_ADE = mediation_summary$z0.p,
+          p_value_Total = mediation_summary$tau.p
+        )
+        
+        # Add the result to the list
+        mediation_results[[paste(iv, dv, sep = "_")]] <- result_df
+      }
+    }
+  }
+}
+
+# Combine all mediation results into one data frame
+all_mediation_results <- do.call(rbind, mediation_results)
+
+# Save the results to an Excel file
+write_xlsx(all_mediation_results, "/Users/janisgaudreau/Desktop/mediation_analysis_results.xlsx")
+
+# Print a message to confirm saving
+print("Mediation analysis results saved to Excel file.")
