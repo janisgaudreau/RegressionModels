@@ -1,0 +1,18 @@
+# Load the necessary library
+library(ggplot2)
+
+# Read the data from the CSV file
+data <- read.csv("/Users/janisgaudreau/Desktop/Data_for_Plotting_Poster.csv")
+
+# Create the ggplot with the data
+ggplot(data, aes(x = PSS_Score, y = Chair_Rise_Greatest_Number)) +
+  # Add the points for the scatter plot
+  geom_point(color = "#A74267") +
+  # Add a smooth line with confidence intervals based on standard error
+  geom_smooth(method = "lm", se = TRUE, color = "#852B69", fill = "#A74267AA", alpha = 0.5) +
+  # Set plot title and axis labels
+  labs(title = " ",
+       x = "PSS Score",
+       y = "Chair Rise Task (number of reps)") +
+  # Customize theme
+  theme_minimal()
