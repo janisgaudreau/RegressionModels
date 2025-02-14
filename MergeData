@@ -1,0 +1,36 @@
+# Install packages if not already installed
+if (!require("readxl")) install.packages("readxl", dependencies = TRUE)
+if (!require("dplyr")) install.packages("dplyr", dependencies = TRUE)
+if (!require("writexl")) install.packages("writexl", dependencies = TRUE)
+
+# Load the libraries
+library(readxl)
+library(dplyr)
+library(writexl)
+
+# Define the directory containing your .xlsx files
+file_dir <- "/Users/janis_gaudreau/Desktop/JanisGaudreau/CNS 2025" # Replace with your directory
+file_list <- c(
+  file.path(file_dir, "SES.xlsx"),
+  file.path(file_dir, "E129_psd_df.xlsx")
+)
+
+# Initialize an empty list to store data frames
+data_frames <- list()
+
+# Read specified Excel files into a list of data frames
+for (file in file_list) {
+  df <- read_excel(file)
+  data_frames[[file]] <- df
+}
+
+# Merge all data frames using an inner join to retain only participants with data in both files
+merged_data <- reduce(data_frames, function(df1, df2) {
+  inner_join(df1, df2, by = "Identifiers") # Adjust "ColumnA" as needed
+})
+
+# Save the merged data to a new Excel file
+write_xlsx(merged_data, "E129_psd_merged_data.xlsx")
+
+# Print completion message
+cat("Merged data saved as 'E129_psd_merged_data.xlsx'")
