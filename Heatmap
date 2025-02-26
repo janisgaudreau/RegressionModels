@@ -1,0 +1,36 @@
+# Install necessary packages if not already installed
+if (!require(ggplot2)) install.packages("ggplot2", dependencies=TRUE)
+if (!require(reshape2)) install.packages("reshape2", dependencies=TRUE)
+
+# Load required libraries
+library(ggplot2)
+library(reshape2)
+
+# Set the working directory to where your CSV file is located
+# setwd("path/to/your/directory")
+
+# Read the data from the CSV file
+data <- read.csv("your_file.csv", header = TRUE, row.names = 1)
+
+# Check the structure of the data
+print(head(data))
+
+# Melt the data for ggplot2
+data_melted <- melt(data, variable.name = "TimePoint", value.name = "Activity")
+
+# Create the heatmap using ggplot2
+heatmap_plot <- ggplot(data_melted, aes(x = TimePoint, y = rownames(data), fill = Activity)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +  # Set the color gradient
+  labs(title = "EEG Heatmap",
+       x = "Time Points",
+       y = "Electrodes",
+       fill = "Activity Level") +
+  theme_minimal() +  # Use a minimal theme
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Tilt x-axis labels for readability
+
+# Display the heatmap
+print(heatmap_plot)
+
+# Save the heatmap to a file (optional)
+ggsave("EEG_heatmap.png", plot = heatmap_plot, width = 10, height = 8)
